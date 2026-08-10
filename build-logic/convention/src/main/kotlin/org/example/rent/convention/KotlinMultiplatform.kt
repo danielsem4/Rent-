@@ -24,7 +24,8 @@ internal fun Project.configureKotlinMultiplatform(extension: KotlinMultiplatform
 
     extension.apply {
         // iOS targets — the framework itself is declared only by the application convention.
-        iosX64()
+        // iosX64 (Intel simulator) is omitted: Compose Multiplatform 1.11.x and lifecycle
+        // 2.11.x no longer publish iosX64 artifacts.
         iosArm64()
         iosSimulatorArm64()
 
