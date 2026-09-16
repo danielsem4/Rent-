@@ -9,6 +9,7 @@ kotlin {
             implementation(libs.bundles.koin.common)
             implementation(libs.bundles.lifecycle.common)
             implementation(libs.navigation.compose)
+            implementation(libs.kotlinx.coroutines.core)
         }
     }
 }
