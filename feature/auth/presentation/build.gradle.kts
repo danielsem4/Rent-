@@ -14,5 +14,9 @@ kotlin {
             implementation(libs.moko.permissions.compose)
             implementation(libs.moko.permissions.camera)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }

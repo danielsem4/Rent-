@@ -47,7 +47,7 @@ import qrscanner.QrScanner
 
 @Composable
 fun QrScannerRoot(
-    onScanSuccess: () -> Unit,
+    onOtpSent: (qrToken: String) -> Unit,
     onBack: () -> Unit,
     viewModel: QrScannerViewModel = koinViewModel(),
 ) {
@@ -55,7 +55,7 @@ fun QrScannerRoot(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            QrScannerEvent.ScanSuccess -> onScanSuccess()
+            is QrScannerEvent.OtpSent -> onOtpSent(event.qrToken)
         }
     }
 

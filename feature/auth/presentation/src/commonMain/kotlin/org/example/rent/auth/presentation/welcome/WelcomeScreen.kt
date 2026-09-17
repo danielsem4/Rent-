@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,10 +17,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,21 +56,43 @@ import rent.feature.auth.presentation.generated.resources.rent_logo_trans
 fun WelcomeRoot(
     onScanQrClick: () -> Unit,
     onLoginSuccess: () -> Unit,
+    pendingQrToken: String? = null,
+    onQrTokenConsumed: () -> Unit = {},
     viewModel: WelcomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             WelcomeEvent.LoginSuccess -> onLoginSuccess()
+            WelcomeEvent.CodeResent -> scope.launch {
+                snackbarHostState.showSnackbar("A new code has been sent.")
+            }
         }
     }
 
-    WelcomeScreen(
-        state = state,
-        onAction = viewModel::onAction,
-        onScanQrClick = onScanQrClick,
-    )
+    // The scanner hands the qrToken back via the nav back-stack; feed it in once, then clear it so
+    // it isn't re-applied on recomposition.
+    LaunchedEffect(pendingQrToken) {
+        if (pendingQrToken != null) {
+            viewModel.onAction(WelcomeAction.OnQrTokenReceived(pendingQrToken))
+            onQrTokenConsumed()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        WelcomeScreen(
+            state = state,
+            onAction = viewModel::onAction,
+            onScanQrClick = onScanQrClick,
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
 }
 
 @Composable
@@ -212,7 +241,11 @@ private fun CodeContent(
         verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
     ) {
         Text(
-            text = "We sent a code to ${state.phoneNumber}. Enter it below to sign in.",
+            text = if (state.qrToken != null) {
+                "We sent a code to your WhatsApp. Enter it below to sign in."
+            } else {
+                "We sent a code to ${state.phoneNumber}. Enter it below to sign in."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.extended.textSecondary,
             textAlign = TextAlign.Center,
@@ -234,6 +267,13 @@ private fun CodeContent(
             enabled = state.code.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
         )
+        TextButton(
+            onClick = { onAction(WelcomeAction.OnResendCode) },
+            enabled = !state.isLoading && !state.isResending,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (state.isResending) "Sending…" else "Resend code")
+        }
         TextButton(
             onClick = { onAction(WelcomeAction.OnBack) },
             enabled = !state.isLoading,

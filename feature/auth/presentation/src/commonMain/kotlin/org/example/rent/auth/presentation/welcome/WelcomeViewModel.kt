@@ -38,6 +38,13 @@ class WelcomeViewModel(
 
             WelcomeAction.OnSubmitCode -> submitCode()
 
+            WelcomeAction.OnResendCode -> submitResend()
+
+            is WelcomeAction.OnQrTokenReceived ->
+                _state.update {
+                    it.copy(step = WelcomeStep.CODE, qrToken = action.qrToken, code = "", error = null)
+                }
+
             WelcomeAction.OnBack -> onBack()
         }
     }
@@ -45,7 +52,12 @@ class WelcomeViewModel(
     private fun onBack() {
         _state.update {
             when (it.step) {
-                WelcomeStep.CODE -> it.copy(step = WelcomeStep.PHONE, code = "", error = null)
+                // The QR flow has no phone step, so its CODE step goes straight back to OPTIONS.
+                WelcomeStep.CODE -> if (it.qrToken != null) {
+                    it.copy(step = WelcomeStep.OPTIONS, qrToken = null, code = "", error = null)
+                } else {
+                    it.copy(step = WelcomeStep.PHONE, code = "", error = null)
+                }
                 WelcomeStep.PHONE -> it.copy(
                     step = WelcomeStep.OPTIONS,
                     phoneNumber = "",
@@ -79,13 +91,36 @@ class WelcomeViewModel(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            authRepository.verifyCode(current.phoneNumber, current.code)
+            val result = current.qrToken?.let { token ->
+                authRepository.verifyQrCode(token, current.code)
+            } ?: authRepository.verifyCode(current.phoneNumber, current.code)
+            result
                 .onSuccess {
                     _state.update { it.copy(isLoading = false) }
                     eventChannel.send(WelcomeEvent.LoginSuccess)
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isLoading = false, error = error.toUiText()) }
+                }
+        }
+    }
+
+    private fun submitResend() {
+        val current = _state.value
+        if (current.isLoading || current.isResending) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isResending = true, error = null) }
+            val result = current.qrToken?.let { token ->
+                authRepository.resendCode(qrToken = token)
+            } ?: authRepository.resendCode(phoneNumber = current.phoneNumber)
+            result
+                .onSuccess {
+                    _state.update { it.copy(isResending = false) }
+                    eventChannel.send(WelcomeEvent.CodeResent)
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isResending = false, error = error.toUiText()) }
                 }
         }
     }

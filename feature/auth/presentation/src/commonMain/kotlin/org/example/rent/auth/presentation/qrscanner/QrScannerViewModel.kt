@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.example.rent.auth.domain.AuthRepository
 import org.example.rent.core.domain.util.onFailure
 import org.example.rent.core.domain.util.onSuccess
+import org.example.rent.core.presentation.util.UiText
 import org.example.rent.core.presentation.util.toUiText
 
 class QrScannerViewModel(
@@ -39,12 +40,21 @@ class QrScannerViewModel(
         val current = _state.value
         if (current.isLoading || current.hasScanned) return
 
+        // The QR encodes https://.../w/onboard?t=<token>; send only the extracted token, not the URL.
+        val qrToken = extractQrToken(payload)
+        if (qrToken == null) {
+            _state.update {
+                it.copy(error = UiText.DynamicString("That QR code isn't a valid login code."))
+            }
+            return
+        }
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, hasScanned = true, error = null) }
-            authRepository.loginWithQr(payload)
+            authRepository.startQrLogin(qrToken)
                 .onSuccess {
                     _state.update { it.copy(isLoading = false) }
-                    eventChannel.send(QrScannerEvent.ScanSuccess)
+                    eventChannel.send(QrScannerEvent.OtpSent(qrToken))
                 }
                 .onFailure { error ->
                     // Reset the guard so the user can rescan after a failure.

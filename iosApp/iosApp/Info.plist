@@ -6,5 +6,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Rent+ needs the camera to scan your login QR code.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
