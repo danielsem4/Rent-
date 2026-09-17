@@ -1,49 +1,37 @@
 package org.example.rent
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.Composable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.rememberNavController
+import org.example.rent.core.designsystem.theme.AppTheme
+import org.example.rent.auth.presentation.navigation.AuthGraphRoutes
+import org.example.rent.auth.presentation.navigation.authGraph
+import org.example.rent.home.presentation.navigation.HomeGraphRoutes
+import org.example.rent.home.presentation.navigation.homeGraph
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
 
-import rent.shared.generated.resources.Res
-import rent.shared.generated.resources.compose_multiplatform
-
+/**
+ * Root UI. Koin is started once by the platform entry point (`initKoin`); with Koin 4.x the Compose
+ * integration reads that global container directly, so `koinViewModel()` in screens just works.
+ */
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    AppTheme {
+        val navController = rememberNavController()
+        NavHost(
+            navController = navController,
+            startDestination = AuthGraphRoutes.Graph,
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
+            authGraph(
+                navController = navController,
+                onLoginSuccess = {
+                    navController.navigate(HomeGraphRoutes.Graph) {
+                        popUpTo(AuthGraphRoutes.Graph) { inclusive = true }
+                    }
+                },
+            )
+            homeGraph()
         }
     }
 }
